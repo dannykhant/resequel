@@ -371,7 +371,7 @@ def build_database_catalog_mthread(save_path: str=None):
 
     for tbl in table_names:
         schema_pair.put(("tbl_colnames", tbl))
-        schema_pair.put(("tbl_index", tbl))
+        schema_pair.put(("tbl_indexes", tbl))
         schema_pair.put(("tbl_dependency", tbl))
     threads = []
     for i in range(number_threads):
