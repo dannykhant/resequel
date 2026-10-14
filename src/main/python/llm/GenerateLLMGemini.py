@@ -13,7 +13,7 @@ class OptimizeLLMSQLGemini:
         return code, funcs, number_of_tokens, time_gen
 
     @staticmethod
-    def __submit_Request_Gemini_LLM(user_message: str, system_message: str, client):
+    def __submit_Request_Gemini_LLM(user_message: str, system_message: str, client, attempt: int = 0):
         from util.Config import _LLM_API_Key, _llm_model, _temperature, _top_p, _top_k, _max_out_token_limit
 
         time_start = time.time()
@@ -39,6 +39,7 @@ class OptimizeLLMSQLGemini:
             system_instruction=[ types.Part.from_text( text=system_message )],
         )
 
+        print(f"[{time.strftime('%H:%M:%S')}] gemini call start attempt={attempt} in_chars={len(user_message) + len(system_message)}", flush=True)
         try:
             response = client.models.generate_content(model=_llm_model,
                     contents=contents,
@@ -67,9 +68,10 @@ class OptimizeLLMSQLGemini:
             return code, funcs, response.usage_metadata.total_token_count, time_end - time_start
 
         except Exception as err:
+            print(f"[{time.strftime('%H:%M:%S')}] gemini call FAILED attempt={attempt} {type(err).__name__}: {err}", flush=True)
             _, api_key = _LLM_API_Key.get_API_Key()
             client = genai.Client(api_key=api_key)
-            return OptimizeLLMSQLGemini.__submit_Request_Gemini_LLM(user_message=user_message, system_message=system_message, client=client)
+            return OptimizeLLMSQLGemini.__submit_Request_Gemini_LLM(user_message=user_message, system_message=system_message, client=client, attempt=attempt + 1)
 
     @staticmethod
     def get_number_tokens(messages: str):
