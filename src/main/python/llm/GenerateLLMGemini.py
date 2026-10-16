@@ -1,14 +1,29 @@
 from google import genai
 from google.genai import types
+import os
 import time
 
 
 class OptimizeLLMSQLGemini:
     @staticmethod
+    def __client(api_key):
+        base_url = os.environ.get("LITELLM_BASE_URL")
+        if base_url:
+            api_key = os.environ.get("LITELLM_API_KEY", api_key)
+            return genai.Client(
+                api_key=api_key,
+                http_options=types.HttpOptions(
+                    base_url=base_url,
+                    headers={"Authorization": f"Bearer {api_key}"},
+                ),
+            )
+        return genai.Client(api_key=api_key)
+
+    @staticmethod
     def optimize_sql_Gemini_LLM(user_message: str, system_message: str):
         from util.Config import _LLM_API_Key
         _, api_key = _LLM_API_Key.get_API_Key()
-        client = genai.Client(api_key=api_key)
+        client = OptimizeLLMSQLGemini.__client(api_key)
         code, funcs, number_of_tokens, time_gen = OptimizeLLMSQLGemini.__submit_Request_Gemini_LLM(user_message=user_message, system_message=system_message, client=client)
         return code, funcs, number_of_tokens, time_gen
 
@@ -70,39 +85,14 @@ class OptimizeLLMSQLGemini:
         except Exception as err:
             print(f"[{time.strftime('%H:%M:%S')}] gemini call FAILED attempt={attempt} {type(err).__name__}: {err}", flush=True)
             _, api_key = _LLM_API_Key.get_API_Key()
-            client = genai.Client(api_key=api_key)
+            client = OptimizeLLMSQLGemini.__client(api_key)
             return OptimizeLLMSQLGemini.__submit_Request_Gemini_LLM(user_message=user_message, system_message=system_message, client=client, attempt=attempt + 1)
 
     @staticmethod
     def get_number_tokens(messages: str):
 
-        from util.Config import _llm_model, _temperature, _top_p, _top_k, _max_out_token_limit
+        from util.Config import _LLM_API_Key, _llm_model
 
-        generation_config = types.GenerateContentConfig(
-            temperature=_temperature,
-            top_p=_top_p,
-            top_k=_top_k,
-            max_output_tokens=_max_out_token_limit,
-            safety_settings=[
-                types.SafetySetting(
-                    category="HARM_CATEGORY_CIVIC_INTEGRITY",
-                    threshold="BLOCK_LOW_AND_ABOVE",  # Block most
-                ),
-            ],
-            response_mime_type="text/plain",
-            #system_instruction=[types.Part.from_text(text=messages)],
-        )
-
-        safety_settings = [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-        ]
-
-        model = genai.GenerativeModel(model_name=_llm_model,
-                                      generation_config=generation_config,
-                                      safety_settings=safety_settings)
-
-        number_of_tokens = model.count_tokens(messages).total_tokens
-        return number_of_tokens
+        _, api_key = _LLM_API_Key.get_API_Key()
+        client = OptimizeLLMSQLGemini.__client(api_key)
+        return client.models.count_tokens(model=_llm_model, contents=messages).total_tokens

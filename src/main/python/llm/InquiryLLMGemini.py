@@ -1,14 +1,29 @@
 from google import genai
 from google.genai import types
+import os
 import time
 
 
 class InquiryLLMGemini:
     @staticmethod
+    def __client(api_key):
+        base_url = os.environ.get("LITELLM_BASE_URL")
+        if base_url:
+            api_key = os.environ.get("LITELLM_API_KEY", api_key)
+            return genai.Client(
+                api_key=api_key,
+                http_options=types.HttpOptions(
+                    base_url=base_url,
+                    headers={"Authorization": f"Bearer {api_key}"},
+                ),
+            )
+        return genai.Client(api_key=api_key)
+
+    @staticmethod
     def inquery_Gemini_LLM(user_message: str, system_message: str):
         from util.Config import _LLM_API_Key
         _, api_key = _LLM_API_Key.get_API_Key()
-        client = genai.Client(api_key=api_key)
+        client = InquiryLLMGemini.__client(api_key)
         result, number_of_tokens, time_gen = InquiryLLMGemini.__submit_Request_Gemini_LLM(user_message=user_message, system_message=system_message, client=client)
         return result, number_of_tokens, time_gen
 
@@ -49,5 +64,5 @@ class InquiryLLMGemini:
 
         except Exception as err:
             _, api_key = _LLM_API_Key.get_API_Key()
-            client = genai.Client(api_key=api_key)
+            client = InquiryLLMGemini.__client(api_key)
             return InquiryLLMGemini.__submit_Request_Gemini_LLM(user_message=user_message, system_message=system_message, client=client)
